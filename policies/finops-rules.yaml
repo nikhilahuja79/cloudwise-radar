@@ -1,0 +1,50 @@
+version: 1
+project: cloudwise-radar
+
+required_tags:
+  - project
+  - environment
+  - owner
+  - cost_center
+  - managed_by
+
+allowed_environments:
+  - dev
+  - test
+  - prod
+
+allowed_locations:
+  - eastus
+  - centralindia
+  - westeurope
+
+blocked_skus:
+  virtual_machines:
+    - Standard_D16s_v5
+    - Standard_D32s_v5
+    - Standard_E16s_v5
+  storage_accounts:
+    - Premium_LRS
+
+monthly_budget_usd:
+  dev: 25
+  test: 50
+  prod: 150
+
+rules:
+  - id: FINOPS_TAGS_001
+    severity: high
+    description: Every Azure resource must include required FinOps tags.
+
+  - id: FINOPS_SKU_001
+    severity: high
+    description: Expensive SKUs are blocked unless explicitly approved.
+
+  - id: FINOPS_REGION_001
+    severity: medium
+    description: Resources should be deployed only in approved regions.
+
+  - id: FINOPS_BUDGET_001
+    severity: high
+    description: Each environment should stay within its monthly budget.
+
