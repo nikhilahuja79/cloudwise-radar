@@ -1,10 +1,13 @@
 from pathlib import Path
 import sys
 import yaml
+import json
+
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_FILE = ROOT / "policies" / "finops-rules.yaml"
 TERRAFORM_DIR = ROOT / "infra" / "envs" / "dev"
+OUTPUT_FILE = ROOT / "outputs" / "finops-findings.json"
 
 
 def load_policy():
@@ -84,6 +87,9 @@ def main():
     findings.extend(check_required_tags(policy, terraform_text))
     findings.extend(check_allowed_locations(policy, terraform_text))
     findings.extend(check_blocked_skus(policy, terraform_text))
+
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT_FILE.write_text(json.dumps(findings, indent=2), encoding="utf-8")
 
     if findings:
         print("FinOps policy scan failed.\n")
