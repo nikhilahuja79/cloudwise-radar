@@ -1,0 +1,38 @@
+name: FinOps Policy Scan
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - "policies/**"
+      - "scripts/**"
+      - ".github/workflows/finops-scan.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/**"
+      - "policies/**"
+      - "scripts/**"
+      - ".github/workflows/finops-scan.yml"
+  workflow_dispatch:
+
+jobs:
+  finops-scan:
+    name: FinOps Policy Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install scanner dependencies
+        run: python -m pip install -r scripts/requirements.txt
+
+      - name: Run FinOps scanner
+        run: python scripts/finops_scan.py
