@@ -1,5 +1,10 @@
+import os
 import json
 from pathlib import Path
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 ROOT = Path(__file__).resolve().parents[1]
 FINDINGS_FILE = ROOT / "outputs" / "finops-findings.json"
@@ -66,6 +71,39 @@ def recommendation_for_finding(finding):
         "example_fix": None,
     }
 
+def llm_recommendation_for_finding(finding):
+    if not os.getenv("OPENAI_API_KEY") or OpenAI is None:
+        return recommendation_for_finding(finding)
+
+    client = OpenAI()
+
+    prompt = f"""
+You are a senior Azure FinOps and Terraform reviewer.
+
+Analyze this policy finding and return practical guidance:
+{json.dumps(finding, indent=2)}
+
+Return a concise JSON object with:
+- rule_id
+- severity
+- summary
+- explanation
+- terraform_fix
+- example_fix
+"""
+
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        input=prompt,
+    )
+
+    try:
+        return json.loads(response.output_text)
+    except json.JSONDecodeError:
+        fallback = recommendation_for_finding(finding)
+        fallback["llm_raw_response"] = response.output_text
+        return fallback
+
 
 def main():
     if not FINDINGS_FILE.exists():
@@ -73,7 +111,7 @@ def main():
         return 1
 
     findings = json.loads(FINDINGS_FILE.read_text(encoding="utf-8"))
-    recommendations = [recommendation_for_finding(finding) for finding in findings]
+    recommendations = [llm_recommendation_for_finding(finding) for finding in findings]
 
     RECOMMENDATIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
     RECOMMENDATIONS_FILE.write_text(

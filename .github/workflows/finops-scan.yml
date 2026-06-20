@@ -39,6 +39,8 @@ jobs:
 
       - name: Generate AI-style recommendations
         if: always()
+        env:
+            OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python scripts/ai_recommend.py
       - name: Upload FinOps outputs
         if: always()
