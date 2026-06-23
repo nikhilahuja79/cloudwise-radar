@@ -16,7 +16,7 @@ type Recommendation = {
   example_fix?: string | null;
 };
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL = "/api";
 
 function App() {
   const [summary, setSummary] = useState<Summary | null>(null);
