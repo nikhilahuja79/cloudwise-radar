@@ -12,10 +12,10 @@ CloudWise Radar is designed as an industry-style DevOps project that combines Az
 | GitHub Actions | Runs CI/CD, Terraform validation, deployment, and scheduled drift checks. |
 | Azure Resource Group | First Azure boundary for all dev resources. |
 | FinOps Policy Rules | Defines required tags, blocked SKUs, and cost governance rules. |
-| Backend API | Will store scan results and expose dashboard APIs. |
-| AI Recommendation Engine | Will convert raw findings into explanations and Terraform fix suggestions. |
-| React Dashboard | Will display cost, drift, risk, and remediation status. |
-| Azure Monitor | Will collect logs, metrics, traces, and alerts. |
+| Backend API | Azure Functions (Python) serving findings, recommendations, drift, and summary endpoints. |
+| AI Recommendation Engine | Converts raw findings into explanations and Terraform fix suggestions (LLM with rule-based fallback). |
+| React Dashboard | Displays cost findings, drift findings, and AI recommendations, backed by the live API. |
+| Azure Monitor | Not yet implemented — planned for a future milestone. |
 
 ## Milestone 1 Architecture
 
@@ -29,33 +29,36 @@ flowchart TD
   Terraform --> Azure["Azure Resource Group"]
 ```
 
-## Final Architecture
+## Current Architecture
 
 ```mermaid
 flowchart LR
-  Dev["Developer"] --> GitHub["GitHub Repo"]
-  GitHub --> CI["GitHub Actions CI/CD"]
-  CI --> TFPlan["Terraform Plan"]
-  CI --> CostScan["FinOps Scanner"]
-  CI --> DriftScan["Drift Detector"]
-  CostScan --> AI["LLM Recommendation Engine"]
-  DriftScan --> AI
-  AI --> API["Azure Functions API"]
-  API --> Data["Azure Storage"]
-  Dashboard["React Dashboard"] --> API
-  API --> Insights["Application Insights"]
-  Insights --> Alerts["Azure Monitor Alerts"]
+  Dev["Developer pushes Terraform"] --> GH["GitHub Actions"]
+  GH --> TF["Terraform Plan"]
+  GH --> Cost["FinOps Policy Scanner"]
+  GH --> Drift["Drift Detector (nightly cron)"]
+  Cost --> AI["AI Recommendation Engine"]
+  Drift --> Issue["Auto-filed GitHub Issue"]
+  Cost --> Data["api/data/*.json (committed to repo)"]
+  Drift --> Data
+  AI --> Data
+  Data --> API["Azure Functions API"]
+  API --> UI["React Dashboard (Azure Static Web Apps)"]
+  Data -.triggers redeploy.-> SWADeploy["SWA Deploy Workflow"]
+  SWADeploy --> UI
 ```
+
+See [PROJECT.md](PROJECT.md) for the full write-up, including the real bugs found while wiring this end-to-end.
 
 ## Data Flow
 
 1. A developer opens a pull request with Terraform changes.
-2. GitHub Actions runs Terraform formatting and validation.
-3. Later milestones add cost and policy scanning.
-4. Drift detection runs on a schedule against live Azure infrastructure.
-5. Findings are sent to the backend.
-6. The AI recommendation engine explains the issue and proposes a fix.
-7. The dashboard shows findings, severity, estimated savings, and remediation status.
+2. GitHub Actions runs Terraform formatting, validation, and the FinOps policy scan.
+3. On push to `main`, scan results are published to `api/data/` and committed.
+4. Drift detection runs nightly (and on demand) against live Azure infrastructure, writing `drift-findings.json` and filing a GitHub issue if drift is found.
+5. Either data-publishing workflow explicitly triggers the Static Web Apps deploy workflow when it commits a real change (bot-authored commits don't auto-trigger other workflows on GitHub, so this step is required).
+6. The Azure Functions API serves the committed JSON via `/findings`, `/recommendations`, `/drift`, and `/summary`.
+7. The React dashboard renders findings, drift status, and AI-generated remediation guidance from the live API.
 
 ## DevOps Concepts Covered
 
