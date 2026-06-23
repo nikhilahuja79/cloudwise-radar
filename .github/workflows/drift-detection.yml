@@ -51,7 +51,7 @@ jobs:
         run: terraform plan -detailed-exitcode -no-color
 
       - name: Create issue when drift is detected
-        if: steps.plan.outcome == 'failure'
+        if: steps.plan.outputs.exitcode == '1' || steps.plan.outputs.exitcode == '2'
         uses: actions/github-script@v7
         with:
           script: |
@@ -81,7 +81,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           mkdir -p outputs
-          if [ "${{ steps.plan.outcome }}" = "failure" ]; then
+          if [ "${{ steps.plan.outputs.exitcode }}" = "1" ] || [ "${{ steps.plan.outputs.exitcode }}" = "2" ]; then
             cat > outputs/drift-findings.json <<EOF
           [
             {
