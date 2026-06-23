@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 FINDINGS_FILE = DATA_DIR / "finops-findings.json"
 RECOMMENDATIONS_FILE = DATA_DIR / "ai-recommendations.json"
+DRIFT_FILE = DATA_DIR / "drift-findings.json"
 
 
 def read_json_file(path: Path):
@@ -47,18 +48,29 @@ def recommendations(req: func.HttpRequest) -> func.HttpResponse:
     })
 
 
+@app.route(route="drift", methods=["GET"])
+def drift(req: func.HttpRequest) -> func.HttpResponse:
+    return json_response({
+        "items": read_json_file(DRIFT_FILE),
+    })
+
+
 @app.route(route="summary", methods=["GET"])
 def summary(req: func.HttpRequest) -> func.HttpResponse:
     findings_data = read_json_file(FINDINGS_FILE)
     recommendations_data = read_json_file(RECOMMENDATIONS_FILE)
+    drift_data = read_json_file(DRIFT_FILE)
 
     severity_counts = {}
     for finding in findings_data:
         severity = finding.get("severity", "unknown")
         severity_counts[severity] = severity_counts.get(severity, 0) + 1
 
+    drift_count = sum(1 for item in drift_data if item.get("status") == "drift_detected")
+
     return json_response({
         "total_findings": len(findings_data),
         "total_recommendations": len(recommendations_data),
         "severity_counts": severity_counts,
+        "drift_count": drift_count,
     })

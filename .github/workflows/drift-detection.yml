@@ -7,7 +7,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
   issues: write
 
 jobs:
@@ -75,3 +75,40 @@ jobs:
               body,
               labels: ["drift", "terraform", "devops"]
             });
+
+      - name: Write drift findings output
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p outputs
+          if [ "${{ steps.plan.outcome }}" = "failure" ]; then
+            cat > outputs/drift-findings.json <<EOF
+          [
+            {
+              "resource": "infra/envs/dev",
+              "status": "drift_detected",
+              "detected_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+          ]
+          EOF
+          else
+            echo "[]" > outputs/drift-findings.json
+          fi
+
+      - name: Publish drift findings to API data
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p api/data
+          cp outputs/drift-findings.json api/data/drift-findings.json
+
+      - name: Commit updated drift data
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add api/data/drift-findings.json
+          git diff --staged --quiet || git commit -m "chore: refresh drift detection data"
+          git push

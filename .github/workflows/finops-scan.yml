@@ -17,6 +17,9 @@ on:
       - ".github/workflows/finops-scan.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   finops-scan:
     name: FinOps Policy Scan
@@ -35,6 +38,7 @@ jobs:
         run: python -m pip install -r scripts/requirements.txt
 
       - name: Run FinOps scanner
+        continue-on-error: true
         run: python scripts/finops_scan.py
 
       - name: Generate AI-style recommendations
@@ -48,3 +52,19 @@ jobs:
         with:
             name: finops-ai-recommendations
             path: outputs/
+
+      - name: Publish results to API data
+        if: always() && github.event_name == 'push'
+        run: |
+          mkdir -p api/data
+          cp outputs/finops-findings.json api/data/finops-findings.json
+          cp outputs/ai-recommendations.json api/data/ai-recommendations.json
+
+      - name: Commit updated API data
+        if: always() && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add api/data
+          git diff --staged --quiet || git commit -m "chore: refresh FinOps scan data"
+          git push

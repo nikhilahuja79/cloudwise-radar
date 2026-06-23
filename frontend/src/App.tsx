@@ -5,6 +5,7 @@ type Summary = {
   total_findings: number;
   total_recommendations: number;
   severity_counts: Record<string, number>;
+  drift_count: number;
 };
 
 type Recommendation = {
@@ -16,11 +17,19 @@ type Recommendation = {
   example_fix?: string | null;
 };
 
+type DriftFinding = {
+  resource: string;
+  status: string;
+  detected_at: string;
+  run_url: string;
+};
+
 const API_BASE_URL = "/api";
 
 function App() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [driftFindings, setDriftFindings] = useState<DriftFinding[]>([]);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/summary`)
@@ -30,6 +39,10 @@ function App() {
     fetch(`${API_BASE_URL}/recommendations`)
       .then((response) => response.json())
       .then((data) => setRecommendations(data.items ?? []));
+
+    fetch(`${API_BASE_URL}/drift`)
+      .then((response) => response.json())
+      .then((data) => setDriftFindings(data.items ?? []));
   }, []);
 
   return (
@@ -57,6 +70,38 @@ function App() {
           <span>High Severity</span>
           <strong>{summary?.severity_counts?.high ?? 0}</strong>
         </article>
+        <article>
+          <span>Drift Detected</span>
+          <strong>{summary?.drift_count ?? 0}</strong>
+        </article>
+      </section>
+
+      <section className="panel">
+        <div className="panel-heading">
+          <h2>Drift Findings</h2>
+          <span>{driftFindings.length} items</span>
+        </div>
+
+        {driftFindings.length === 0 ? (
+          <div className="empty">
+            No drift detected. Azure resources match the Terraform state.
+          </div>
+        ) : (
+          <div className="recommendation-list">
+            {driftFindings.map((item, index) => (
+              <article className="recommendation" key={`${item.resource}-${index}`}>
+                <div>
+                  <span className="badge high">{item.status}</span>
+                  <h3>{item.resource}</h3>
+                </div>
+                <p>Detected at {item.detected_at}</p>
+                <a href={item.run_url} target="_blank" rel="noreferrer">
+                  View workflow run
+                </a>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="panel">
