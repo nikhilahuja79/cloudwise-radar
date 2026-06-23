@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   finops-scan:
@@ -61,10 +62,22 @@ jobs:
           cp outputs/ai-recommendations.json api/data/ai-recommendations.json
 
       - name: Commit updated API data
+        id: commit
         if: always() && github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add api/data
-          git diff --staged --quiet || git commit -m "chore: refresh FinOps scan data"
-          git push
+          if git diff --staged --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "chore: refresh FinOps scan data"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger dashboard redeploy
+        if: always() && github.event_name == 'push' && steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run "Azure Static Web Apps CI/CD" --repo ${{ github.repository }} --ref main
