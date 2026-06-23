@@ -48,3 +48,4 @@ rules:
     severity: high
     description: Each environment should stay within its monthly budget.
 
+
