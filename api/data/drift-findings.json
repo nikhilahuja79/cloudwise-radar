@@ -1,8 +1,1 @@
-[
-  {
-    "resource": "infra/envs/dev",
-    "status": "drift_detected",
-    "detected_at": "2026-06-25T07:00:56Z",
-    "run_url": "https://github.com/nikhilahuja79/cloudwise-radar/actions/runs/28152791435"
-  }
-]
+[]
